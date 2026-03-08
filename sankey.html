@@ -6,7 +6,7 @@
 
 <body>
 
-<div id="chart" style="width:900px;height:600px;"></div>
+<div id="chart" style="width:1000px;height:600px;"></div>
 
 <script>
 
@@ -23,42 +23,41 @@ fetch(csvURL)
     const to = rows.map(r => r[1]);
     const value = rows.map(r => Number(r[2]));
     const level = rows.map(r => Number(r[3]));
-    const type = rows.map(r => r[4]); // New column: 'income', 'cost', 'profit'
+    const type = rows.map(r => r[4]); // 'income', 'cost', 'profit'
 
     // Build unique nodes
     const labels = [];
     const nodeLevels = [];
     const nodeValues = {};
     const nodeTypes = [];
-    const colorMap = {
-        "income": "#888888",  // gray
-        "cost": "#F28C8C",    // red
-        "profit": "#7FBF7F"   // green
-    };
-
     rows.forEach((r,i) => {
         [r[0], r[1]].forEach((name,j) => {
             if (!labels.includes(name)) {
                 labels.push(name);
-                nodeLevels.push(j===0 ? level[i] : level[i]+1);
+                nodeLevels.push(j === 0 ? level[i] : level[i]+1);
                 nodeValues[name] = 0;
-                nodeTypes.push(j===0 ? type[i] : type[i]); // source node type, can adjust if needed
+                nodeTypes.push(j === 0 ? type[i] : type[i]);
             }
             nodeValues[name] += Number(r[2]);
         });
     });
 
+    const colorMap = {
+        "income": "#888888",  // gray
+        "cost": "#F28C8C",    // red
+        "profit": "#7FBF7F"   // green
+    };
     const nodeColors = nodeTypes.map(t => colorMap[t] || "#CCCCCC");
 
     const index = name => labels.indexOf(name);
     const source = from.map(index);
     const target = to.map(index);
 
-    // Horizontal positions
+    // Horizontal positions (levels)
     const maxLevel = Math.max(...nodeLevels);
     const x = nodeLevels.map(l => l / maxLevel);
 
-    // Vertical distribution: evenly space nodes in each level
+    // Vertical positions: distribute nodes evenly within each level
     const nodesPerLevel = {};
     nodeLevels.forEach((l,i) => {
         if (!nodesPerLevel[l]) nodesPerLevel[l] = [];
@@ -77,49 +76,35 @@ fetch(csvURL)
     // Sankey data
     const data = [{
         type: "sankey",
-        orientation: "v",
+        orientation: "h", // horizontal, like Meta example
         node: { 
             label: labels.map(l => `${l}\n$${nodeValues[l].toLocaleString()}`),
             color: nodeColors,
             x: x,
             y: y,
-            pad: 15,
-            thickness: 20
+            pad: 20,
+            thickness: 25,
+            line: { color: "#000", width: 0.5 }
         },
         link: { 
             source, 
             target, 
             value, 
-            color: source.map(s => nodeColors[s])  // link inherits source color
+            color: source.map(s => nodeColors[s]),
+            label: value.map(v => `$${v.toLocaleString()}`)
         }
     }];
 
-    // Link value annotations
-    const annotations = value.map((v,i) => {
-        const xPos = (x[source[i]] + x[target[i]]) / 2;
-        const yPos = (y[source[i]] + y[target[i]]) / 2;
-        return {
-            text: `$${v.toLocaleString()}`,
-            xref: 'paper',
-            yref: 'paper',
-            x: xPos,
-            y: yPos,
-            showarrow: false,
-            font: { color: "#000", size: 12 },
-            bgcolor: "rgba(255,255,255,0.7)",
-            borderpad: 2
-        };
-    });
-
     const layout = {
-        title: "Sankey Chart – Clean Category Names + Values",
-        font: { size: 12 }
+        title: "Meta-style Sankey Chart",
+        font: { size: 12 },
+        margin: { t: 50, l: 50, r: 50, b: 50 },
+        hovermode: 'x',
     };
 
-    Plotly.newPlot("chart", data, {...layout, annotations});
+    Plotly.newPlot("chart", data, layout);
 
 });
-
 </script>
 
 </body>
