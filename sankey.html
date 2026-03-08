@@ -10,6 +10,7 @@
 
 <script>
 
+// CSV URL
 const csvURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTiubOxhWDiRf1x8aY43PQWr6rPjM5tbY2GAvRcSU-87-tolmEjLGKQA5yG7jDx8nX9S7SNTbPhQcdl/pub?gid=742266700&single=true&output=csv";
 
 fetch(csvURL)
@@ -21,23 +22,33 @@ fetch(csvURL)
     const from = rows.map(r => r[0]);
     const to = rows.map(r => r[1]);
     const value = rows.map(r => Number(r[2]));
-    const level = rows.map(r => Number(r[3])); // Level/Column field
+    const level = rows.map(r => Number(r[3]));
+    const type = rows.map(r => r[4]); // New column: 'income', 'cost', 'profit'
 
     // Build unique nodes
     const labels = [];
     const nodeLevels = [];
-    const nodeColors = [];
-    const colorPalette = ["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"];
+    const nodeValues = {};
+    const nodeTypes = [];
+    const colorMap = {
+        "income": "#888888",  // gray
+        "cost": "#F28C8C",    // red
+        "profit": "#7FBF7F"   // green
+    };
 
     rows.forEach((r,i) => {
         [r[0], r[1]].forEach((name,j) => {
             if (!labels.includes(name)) {
                 labels.push(name);
-                nodeLevels.push(j===0 ? level[i] : level[i]+1); // target is next level
-                nodeColors.push(colorPalette[labels.length % colorPalette.length]);
+                nodeLevels.push(j===0 ? level[i] : level[i]+1);
+                nodeValues[name] = 0;
+                nodeTypes.push(j===0 ? type[i] : type[i]); // source node type, can adjust if needed
             }
+            nodeValues[name] += Number(r[2]);
         });
     });
+
+    const nodeColors = nodeTypes.map(t => colorMap[t] || "#CCCCCC");
 
     const index = name => labels.indexOf(name);
     const source = from.map(index);
@@ -47,7 +58,7 @@ fetch(csvURL)
     const maxLevel = Math.max(...nodeLevels);
     const x = nodeLevels.map(l => l / maxLevel);
 
-    // Approximate vertical positions: evenly spaced per level
+    // Vertical distribution: evenly space nodes in each level
     const nodesPerLevel = {};
     nodeLevels.forEach((l,i) => {
         if (!nodesPerLevel[l]) nodesPerLevel[l] = [];
@@ -63,13 +74,14 @@ fetch(csvURL)
         });
     });
 
+    // Sankey data
     const data = [{
         type: "sankey",
         orientation: "v",
         node: { 
-            label: labels, 
-            color: nodeColors, 
-            x: x, 
+            label: labels.map(l => `${l}\n$${nodeValues[l].toLocaleString()}`),
+            color: nodeColors,
+            x: x,
             y: y,
             pad: 15,
             thickness: 20
@@ -78,16 +90,16 @@ fetch(csvURL)
             source, 
             target, 
             value, 
-            color: value.map(v => `rgba(0,0,0,0.2)`)
+            color: source.map(s => nodeColors[s])  // link inherits source color
         }
     }];
 
-    // Add annotations for link values
+    // Link value annotations
     const annotations = value.map((v,i) => {
         const xPos = (x[source[i]] + x[target[i]]) / 2;
         const yPos = (y[source[i]] + y[target[i]]) / 2;
         return {
-            text: v,
+            text: `$${v.toLocaleString()}`,
             xref: 'paper',
             yref: 'paper',
             x: xPos,
@@ -100,8 +112,8 @@ fetch(csvURL)
     });
 
     const layout = {
-        title: "Sankey Chart with Levels, Colors, and Flow-Aligned Values",
-        font: { size: 12 },
+        title: "Sankey Chart – Clean Category Names + Values",
+        font: { size: 12 }
     };
 
     Plotly.newPlot("chart", data, {...layout, annotations});
