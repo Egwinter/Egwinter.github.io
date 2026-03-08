@@ -31,7 +31,7 @@ const target = to.map(index);
 
 const data = [{
 type: "sankey",
-orientation: "v",   // makes it vertical
+orientation: "h",   // makes it vertical
 node: { label: labels },
 link: { source, target, value }
 }];
@@ -45,3 +45,4 @@ Plotly.newPlot("chart", data);
 </body>
 
 </html>
+
