@@ -16,33 +16,99 @@ fetch(csvURL)
 .then(r => r.text())
 .then(text => {
 
-const rows = text.trim().split("\n").slice(1).map(r => r.split(","));
+    const rows = text.trim().split("\n").slice(1).map(r => r.split(","));
 
-const from = rows.map(r => r[0]);
-const to = rows.map(r => r[1]);
-const value = rows.map(r => Number(r[2]));
+    const from = rows.map(r => r[0]);
+    const to = rows.map(r => r[1]);
+    const value = rows.map(r => Number(r[2]));
+    const level = rows.map(r => Number(r[3])); // Level/Column field
 
-const labels = [...new Set([...from, ...to])];
+    // Build unique nodes
+    const labels = [];
+    const nodeLevels = [];
+    const nodeColors = [];
+    const colorPalette = ["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"];
 
-const index = name => labels.indexOf(name);
+    rows.forEach((r,i) => {
+        [r[0], r[1]].forEach((name,j) => {
+            if (!labels.includes(name)) {
+                labels.push(name);
+                nodeLevels.push(j===0 ? level[i] : level[i]+1); // target is next level
+                nodeColors.push(colorPalette[labels.length % colorPalette.length]);
+            }
+        });
+    });
 
-const source = from.map(index);
-const target = to.map(index);
+    const index = name => labels.indexOf(name);
+    const source = from.map(index);
+    const target = to.map(index);
 
-const data = [{
-type: "sankey",
-orientation: "h",   // makes it vertical
-node: { label: labels },
-link: { source, target, value }
-}];
+    // Horizontal positions
+    const maxLevel = Math.max(...nodeLevels);
+    const x = nodeLevels.map(l => l / maxLevel);
 
-Plotly.newPlot("chart", data);
+    // Approximate vertical positions: evenly spaced per level
+    const nodesPerLevel = {};
+    nodeLevels.forEach((l,i) => {
+        if (!nodesPerLevel[l]) nodesPerLevel[l] = [];
+        nodesPerLevel[l].push(i);
+    });
+
+    const y = Array(labels.length).fill(0);
+    Object.keys(nodesPerLevel).forEach(l => {
+        const nodes = nodesPerLevel[l];
+        const step = 1 / (nodes.length + 1);
+        nodes.forEach((node,i) => {
+            y[node] = step * (i + 1);
+        });
+    });
+
+    const data = [{
+        type: "sankey",
+        orientation: "v",
+        node: { 
+            label: labels, 
+            color: nodeColors, 
+            x: x, 
+            y: y,
+            pad: 15,
+            thickness: 20
+        },
+        link: { 
+            source, 
+            target, 
+            value, 
+            color: value.map(v => `rgba(0,0,0,0.2)`)
+        }
+    }];
+
+    // Add annotations for link values
+    const annotations = value.map((v,i) => {
+        const xPos = (x[source[i]] + x[target[i]]) / 2;
+        const yPos = (y[source[i]] + y[target[i]]) / 2;
+        return {
+            text: v,
+            xref: 'paper',
+            yref: 'paper',
+            x: xPos,
+            y: yPos,
+            showarrow: false,
+            font: { color: "#000", size: 12 },
+            bgcolor: "rgba(255,255,255,0.7)",
+            borderpad: 2
+        };
+    });
+
+    const layout = {
+        title: "Sankey Chart with Levels, Colors, and Flow-Aligned Values",
+        font: { size: 12 },
+    };
+
+    Plotly.newPlot("chart", data, {...layout, annotations});
 
 });
 
 </script>
 
 </body>
-
 </html>
-
