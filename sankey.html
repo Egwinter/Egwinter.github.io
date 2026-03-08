@@ -43,7 +43,7 @@ fetch(csvURL)
     });
 
     const colorMap = {
-        "income": "#888888",  // gray
+        "income": "#4292c6",  // blue
         "cost": "#F28C8C",    // red
         "profit": "#7FBF7F"   // green
     };
@@ -73,37 +73,51 @@ fetch(csvURL)
         });
     });
 
-// Sankey data
-const data = [{
-    type: "sankey",
-    orientation: "h", // horizontal
-    node: { 
-        label: labels.map(l => `${l}\n$${nodeValues[l].toLocaleString()}`),
-        color: nodeColors,
-        x: x,
-        y: y,
-        pad: 20,
-        thickness: 25,
-        line: { color: "#000", width: 0.5 }
-    },
-    link: { 
-        source, 
-        target, 
-        value, 
-        color: target.map(t => nodeColors[t]), // <-- incoming links match node color
-        label: value.map(v => v.toLocaleString('en-US', {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0
-})) 
-    }
-}];
+    // Sankey data
+    const data = [{
+        type: "sankey",
+        orientation: "h", // horizontal
+        node: { 
+            label: [], // hide default labels
+            color: nodeColors,
+            x: x,
+            y: y,
+            pad: 20,
+            thickness: 25,
+            line: { color: "#000", width: 0.5 }
+        },
+        link: { 
+            source, 
+            target, 
+            value, 
+            color: target.map(t => nodeColors[t]), // incoming links match node color
+            label: value.map(v => v.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}))
+        }
+    }];
 
+    // Create annotations for node labels with boxes
+    const annotations = labels.map((l,i) => ({
+        x: x[i],
+        y: y[i],
+        xref: 'paper',
+        yref: 'paper',
+        text: `${l}<br>$${nodeValues[l].toLocaleString()}`,
+        showarrow: false,
+        font: { size: 12, color: '#000' },
+        align: 'center',
+        borderpad: 6,
+        borderwidth: 1,
+        bordercolor: '#ccc',
+        bgcolor: 'rgba(255,255,255,0.8)',
+        borderradius: 6
+    }));
 
     const layout = {
         title: "Meta-style Sankey Chart",
         font: { size: 12 },
         margin: { t: 50, l: 50, r: 50, b: 50 },
         hovermode: 'x',
+        annotations
     };
 
     Plotly.newPlot("chart", data, layout);
@@ -113,5 +127,3 @@ const data = [{
 
 </body>
 </html>
-
-
