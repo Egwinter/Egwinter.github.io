@@ -91,7 +91,10 @@ const data = [{
         target, 
         value, 
         color: target.map(t => nodeColors[t]), // <-- incoming links match node color
-        label: value.map(v => `$${v.toLocaleString()}`)
+        label: value.map(v => v.toLocaleString('en-US', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0
+})) 
     }
 }];
 
@@ -110,4 +113,5 @@ const data = [{
 
 </body>
 </html>
+
 
