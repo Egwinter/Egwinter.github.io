@@ -6,132 +6,171 @@
 
 <body>
 
-<div id="chart" style="width:2000px;height:1200px;"></div>
+<div id="chart" style="width:1800px;height:900px;"></div>
 
 <script>
 
-// CSV URL
 const csvURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTiubOxhWDiRf1x8aY43PQWr6rPjM5tbY2GAvRcSU-87-tolmEjLGKQA5yG7jDx8nX9S7SNTbPhQcdl/pub?gid=742266700&single=true&output=csv";
 
 fetch(csvURL)
 .then(r => r.text())
 .then(text => {
 
-    const rows = text.trim().split("\n").slice(1).map(r => r.split(","));
+const rows = text.trim().split("\n").slice(1).map(r => r.split(","));
 
-    const from = rows.map(r => r[0]);
-    const to = rows.map(r => r[1]);
-    const value = rows.map(r => Number(r[2]));
-    const level = rows.map(r => Number(r[3]));
-    const type = rows.map(r => r[4]);
+const from = rows.map(r => r[0]);
+const to = rows.map(r => r[1]);
+const value = rows.map(r => Number(r[2]));
+const level = rows.map(r => Number(r[3]));
+const type = rows.map(r => r[4]);
 
-    // Build unique nodes
-    const labels = [];
-    const nodeLevels = [];
-    const nodeValues = {};
-    const nodeTypes = [];
+// Build node list
+const labels = [];
+const nodeLevels = [];
+const nodeValues = {};
+const nodeTypes = {};
 
-    rows.forEach((r,i) => {
-        [r[0], r[1]].forEach((name,j) => {
-            if (!labels.includes(name)) {
-                labels.push(name);
-                nodeLevels.push(j === 0 ? level[i] : level[i]+1);
-                nodeValues[name] = 0;
-                nodeTypes.push(type[i]);
-            }
-            nodeValues[name] += Number(r[2]);
-        });
-    });
+rows.forEach((r,i)=>{
 
-    const colorMap = {
-        "income": "#4292c6",
-        "cost": "#F28C8C",
-        "profit": "#7FBF7F"
-    };
+  if(!labels.includes(r[0])){
+    labels.push(r[0]);
+    nodeLevels.push(level[i]);
+    nodeTypes[r[0]] = type[i];
+    nodeValues[r[0]] = 0;
+  }
 
-    const nodeColors = nodeTypes.map(t => colorMap[t] || "#CCCCCC");
+  if(!labels.includes(r[1])){
+    labels.push(r[1]);
+    nodeLevels.push(level[i]+1);
+    nodeTypes[r[1]] = type[i];
+    nodeValues[r[1]] = 0;
+  }
 
-    const index = name => labels.indexOf(name);
-    const source = from.map(index);
-    const target = to.map(index);
-
-    // Horizontal positions
-    const maxLevel = Math.max(...nodeLevels);
-    const x = nodeLevels.map(l => l / maxLevel);
-
-    // Vertical positions
-    const nodesPerLevel = {};
-    nodeLevels.forEach((l,i) => {
-        if (!nodesPerLevel[l]) nodesPerLevel[l] = [];
-        nodesPerLevel[l].push(i);
-    });
-
-    const y = Array(labels.length).fill(0);
-    Object.keys(nodesPerLevel).forEach(l => {
-        const nodes = nodesPerLevel[l];
-        const step = 1 / (nodes.length + 1);
-        nodes.forEach((node,i) => {
-            y[node] = step * (i + 1);
-        });
-    });
-
-    // Flow coloring rule
-    const linkColors = source.map((s,i) => {
-        if (nodeTypes[s] === "income") {
-            return nodeColors[s];   // outgoing from income
-        } else {
-            return nodeColors[target[i]]; // otherwise color by destination
-        }
-    });
-
-    // Sankey data
-    const data = [{
-        type: "sankey",
-        orientation: "h",
-        node: { 
-            label: [],
-            color: nodeColors,
-            x: x,
-            y: y,
-            pad: 20,
-            thickness: 25,
-            line: { color: "#000", width: 0.5 }
-        },
-        link: { 
-            source, 
-            target, 
-            value, 
-            color: linkColors,
-            label: value.map(v => v.toLocaleString('en-US', {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0
-            }))
-        }
-    }];
-
-    // Text labels (no box)
-    const annotations = labels.map((l,i) => ({
-        x: x[i],
-        y: y[i],
-        xref: 'paper',
-        yref: 'paper',
-        text: `${l}<br>$${nodeValues[l].toLocaleString()}`,
-        showarrow: false,
-        font: { size: 12, color: '#000' },
-        align: 'center'
-    }));
-
-    const layout = {
-        title: "Meta-style Sankey Chart",
-        font: { size: 14 },
-        margin: { t: 80, l: 80, r: 80, b: 80 },
-        hovermode: 'x',
-        annotations
-    };
-
-    Plotly.newPlot("chart", data, layout);
+  nodeValues[r[0]] += Number(r[2]);
+  nodeValues[r[1]] += Number(r[2]);
 
 });
+
+// Color rules
+function nodeColor(t){
+
+if(t==="income") return "#2B6CB0";   // blue
+if(t==="profit") return "#4cbb17";   // green
+if(t==="cost") return "#D62828";     // red
+
+return "#999";
+
+}
+
+const nodeColors = labels.map(l => nodeColor(nodeTypes[l]));
+
+const index = n => labels.indexOf(n);
+
+const source = from.map(index);
+const target = to.map(index);
+
+// Link colors
+const linkColors = source.map((s,i)=>{
+
+const sourceName = labels[s];
+const targetName = labels[target[i]];
+
+if(nodeTypes[sourceName]==="income"){
+    return nodeColor("income");
+}
+
+return nodeColor(nodeTypes[targetName]);
+
+});
+
+// Horizontal positioning
+const maxLevel = Math.max(...nodeLevels);
+
+const x = nodeLevels.map(l => l/maxLevel);
+
+// Vertical stacking
+const levelGroups = {};
+
+nodeLevels.forEach((l,i)=>{
+
+if(!levelGroups[l]) levelGroups[l]=[];
+levelGroups[l].push(i);
+
+});
+
+const y = Array(labels.length).fill(0);
+
+Object.keys(levelGroups).forEach(l=>{
+
+const nodes = levelGroups[l];
+const step = 1/(nodes.length+1);
+
+nodes.forEach((n,i)=>{
+
+y[n] = step*(i+1);
+
+});
+
+});
+
+// Sankey
+const data=[{
+
+type:"sankey",
+orientation:"h",
+
+node:{
+label:[],
+color:nodeColors,
+x:x,
+y:y,
+pad:30,
+thickness:30,
+line:{color:"rgba(0,0,0,0)",width:0}
+},
+
+link:{
+source:source,
+target:target,
+value:value,
+color:linkColors
+}
+
+}];
+
+// Meta-style labels
+const annotations = labels.map((l,i)=>({
+
+x:x[i],
+y:y[i],
+xref:"paper",
+yref:"paper",
+
+text:`<b>${l}</b><br>$${nodeValues[l].toLocaleString()}`,
+
+showarrow:false,
+align:"center",
+
+font:{
+size:16,
+color:"#1a1a1a"
+}
+
+}));
+
+const layout={
+
+font:{family:"Arial"},
+margin:{l:50,r:50,t:50,b:50},
+hovermode:"closest",
+annotations:annotations
+
+};
+
+Plotly.newPlot("chart",data,layout);
+
+});
+
 </script>
 
 </body>
