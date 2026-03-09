@@ -102,24 +102,28 @@ return nodeColor(nodeTypes[tName]);
 const maxLevel = Math.max(...nodeLevels);
 const x = nodeLevels.map(l => l/maxLevel);
 
-// ---- Y stacking ----
+// ---- Y stacking (fixed order to match flow stacking) ----
 
 const levelGroups = {};
+
 nodeLevels.forEach((l,i)=>{
-if(!levelGroups[l]) levelGroups[l] = [];
-levelGroups[l].push(i);
+    if(!levelGroups[l]) levelGroups[l] = [];
+    levelGroups[l].push(i);
 });
 
 const y = Array(labels.length).fill(0);
 
-Object.keys(levelGroups).forEach(l=>{
+Object.keys(levelGroups).forEach(l => {
 
-const nodes = levelGroups[l];
-const step = 1/(nodes.length+1);
+    const nodes = levelGroups[l];
+    const step = 1/(nodes.length+1);
 
-nodes.forEach((n,i)=>{
-y[n] = step*(i+1);
-});
+    nodes.forEach((n,i) => {
+
+        // reverse index so labels align with flows
+        y[n] = step * (nodes.length - i);
+
+    });
 
 });
 
@@ -175,3 +179,4 @@ Plotly.newPlot("chart",data,layout);
 
 </body>
 </html>
+
