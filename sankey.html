@@ -6,7 +6,7 @@
 
 <body>
 
-<div id="chart" style="width:1000px;height:600px;"></div>
+<div id="chart" style="width:2000px;height:1200px;"></div>
 
 <script>
 
@@ -23,41 +23,43 @@ fetch(csvURL)
     const to = rows.map(r => r[1]);
     const value = rows.map(r => Number(r[2]));
     const level = rows.map(r => Number(r[3]));
-    const type = rows.map(r => r[4]); // 'income', 'cost', 'profit'
+    const type = rows.map(r => r[4]);
 
     // Build unique nodes
     const labels = [];
     const nodeLevels = [];
     const nodeValues = {};
     const nodeTypes = [];
+
     rows.forEach((r,i) => {
         [r[0], r[1]].forEach((name,j) => {
             if (!labels.includes(name)) {
                 labels.push(name);
                 nodeLevels.push(j === 0 ? level[i] : level[i]+1);
                 nodeValues[name] = 0;
-                nodeTypes.push(j === 0 ? type[i] : type[i]);
+                nodeTypes.push(type[i]);
             }
             nodeValues[name] += Number(r[2]);
         });
     });
 
     const colorMap = {
-        "income": "#4292c6",  // blue
-        "cost": "#F28C8C",    // red
-        "profit": "#7FBF7F"   // green
+        "income": "#4292c6",
+        "cost": "#F28C8C",
+        "profit": "#7FBF7F"
     };
+
     const nodeColors = nodeTypes.map(t => colorMap[t] || "#CCCCCC");
 
     const index = name => labels.indexOf(name);
     const source = from.map(index);
     const target = to.map(index);
 
-    // Horizontal positions (levels)
+    // Horizontal positions
     const maxLevel = Math.max(...nodeLevels);
     const x = nodeLevels.map(l => l / maxLevel);
 
-    // Vertical positions: distribute nodes evenly within each level
+    // Vertical positions
     const nodesPerLevel = {};
     nodeLevels.forEach((l,i) => {
         if (!nodesPerLevel[l]) nodesPerLevel[l] = [];
@@ -73,12 +75,21 @@ fetch(csvURL)
         });
     });
 
+    // Flow coloring rule
+    const linkColors = source.map((s,i) => {
+        if (nodeTypes[s] === "income") {
+            return nodeColors[s];   // outgoing from income
+        } else {
+            return nodeColors[target[i]]; // otherwise color by destination
+        }
+    });
+
     // Sankey data
     const data = [{
         type: "sankey",
-        orientation: "h", // horizontal
+        orientation: "h",
         node: { 
-            label: [], // hide default labels
+            label: [],
             color: nodeColors,
             x: x,
             y: y,
@@ -90,12 +101,15 @@ fetch(csvURL)
             source, 
             target, 
             value, 
-            color: target.map(t => nodeColors[t]), // incoming links match node color
-            label: value.map(v => v.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}))
+            color: linkColors,
+            label: value.map(v => v.toLocaleString('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }))
         }
     }];
 
-    // Create annotations for node labels with boxes
+    // Text labels (no box)
     const annotations = labels.map((l,i) => ({
         x: x[i],
         y: y[i],
@@ -104,18 +118,13 @@ fetch(csvURL)
         text: `${l}<br>$${nodeValues[l].toLocaleString()}`,
         showarrow: false,
         font: { size: 12, color: '#000' },
-        align: 'center',
-        borderpad: 6,
-        borderwidth: 1,
-        bordercolor: '#ccc',
-        bgcolor: 'rgba(255,255,255,0.8)',
-        borderradius: 6
+        align: 'center'
     }));
 
     const layout = {
         title: "Meta-style Sankey Chart",
-        font: { size: 12 },
-        margin: { t: 50, l: 50, r: 50, b: 50 },
+        font: { size: 14 },
+        margin: { t: 80, l: 80, r: 80, b: 80 },
         hovermode: 'x',
         annotations
     };
