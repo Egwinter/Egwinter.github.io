@@ -27,36 +27,46 @@ const type = rows.map(r => r[4]);
 // Build node list
 const labels = [];
 const nodeLevels = [];
-const nodeValues = {};
 const nodeTypes = {};
 
 rows.forEach((r,i)=>{
 
-  if(!labels.includes(r[0])){
-    labels.push(r[0]);
-    nodeLevels.push(level[i]);
-    nodeTypes[r[0]] = type[i];
-    nodeValues[r[0]] = 0;
-  }
+if(!labels.includes(r[0])){
+labels.push(r[0]);
+nodeLevels.push(level[i]);
+nodeTypes[r[0]] = type[i];
+}
 
-  if(!labels.includes(r[1])){
-    labels.push(r[1]);
-    nodeLevels.push(level[i]+1);
-    nodeTypes[r[1]] = type[i];
-    nodeValues[r[1]] = 0;
-  }
-
-  nodeValues[r[0]] += Number(r[2]);
-  nodeValues[r[1]] += Number(r[2]);
+if(!labels.includes(r[1])){
+labels.push(r[1]);
+nodeLevels.push(level[i]+1);
+nodeTypes[r[1]] = type[i];
+}
 
 });
 
-// Color rules
+// Node values (incoming preferred)
+const nodeValues = {};
+
+labels.forEach(l => nodeValues[l] = 0);
+
+rows.forEach(r=>{
+nodeValues[r[1]] += Number(r[2]);
+});
+
+// If node has no incoming links use outgoing
+rows.forEach(r=>{
+if(nodeValues[r[0]] === 0){
+nodeValues[r[0]] += Number(r[2]);
+}
+});
+
+// Colors
 function nodeColor(t){
 
-if(t==="income") return "#2B6CB0";   // blue
-if(t==="profit") return "#4cbb17";   // green
-if(t==="cost") return "#D62828";     // red
+if(t==="income") return "#2B6CB0";
+if(t==="profit") return "#3bb152";
+if(t==="cost") return "#D62828";
 
 return "#999";
 
@@ -69,33 +79,29 @@ const index = n => labels.indexOf(n);
 const source = from.map(index);
 const target = to.map(index);
 
-// Link colors
+// Flow color rule
 const linkColors = source.map((s,i)=>{
 
-const sourceName = labels[s];
-const targetName = labels[target[i]];
+const sName = labels[s];
+const tName = labels[target[i]];
 
-if(nodeTypes[sourceName]==="income"){
-    return nodeColor("income");
+if(nodeTypes[sName] === "income"){
+return nodeColor("income");
 }
 
-return nodeColor(nodeTypes[targetName]);
+return nodeColor(nodeTypes[tName]);
 
 });
 
-// Horizontal positioning
+// X positions
 const maxLevel = Math.max(...nodeLevels);
-
 const x = nodeLevels.map(l => l/maxLevel);
 
-// Vertical stacking
+// Y stacking
 const levelGroups = {};
-
 nodeLevels.forEach((l,i)=>{
-
-if(!levelGroups[l]) levelGroups[l]=[];
+if(!levelGroups[l]) levelGroups[l] = [];
 levelGroups[l].push(i);
-
 });
 
 const y = Array(labels.length).fill(0);
@@ -106,9 +112,7 @@ const nodes = levelGroups[l];
 const step = 1/(nodes.length+1);
 
 nodes.forEach((n,i)=>{
-
 y[n] = step*(i+1);
-
 });
 
 });
@@ -125,7 +129,7 @@ color:nodeColors,
 x:x,
 y:y,
 pad:30,
-thickness:30,
+thickness:35,
 line:{color:"rgba(0,0,0,0)",width:0}
 },
 
@@ -138,11 +142,12 @@ color:linkColors
 
 }];
 
-// Meta-style labels
+// Labels aligned with node blocks
 const annotations = labels.map((l,i)=>({
 
-x:x[i],
+x:x[i] + 0.01,
 y:y[i],
+
 xref:"paper",
 yref:"paper",
 
@@ -153,16 +158,15 @@ align:"center",
 
 font:{
 size:16,
-color:"#1a1a1a"
+color:"#111"
 }
 
 }));
 
 const layout={
 
+margin:{l:50,r:50,t:40,b:40},
 font:{family:"Arial"},
-margin:{l:50,r:50,t:50,b:50},
-hovermode:"closest",
 annotations:annotations
 
 };
